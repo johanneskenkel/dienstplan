@@ -7,10 +7,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class RosterGenerator {
@@ -21,13 +19,14 @@ public class RosterGenerator {
         List<Person> persons = getPersons();
         Map<Integer, List<RosterDay>> scoreRosterDayMap = new HashMap<>();
         int index;
-        for (index = 0; index < 100000; index++) {
+        for (index = 0; index < 1000; index++) {
             List<RosterDay> rosterDays = getRosterDays(persons);
             int rosterScore = calculateRosterScore(rosterDays);
+            System.out.println(rosterScore);
             scoreRosterDayMap.put(rosterScore, rosterDays);
         }
         scoreRosterDayMap.keySet().stream().sorted(Comparator.reverseOrder()).limit(7).forEach(System.out::println);
-        Integer bestScore = scoreRosterDayMap.keySet().stream().sorted(Comparator.reverseOrder()).findFirst().orElseThrow();
+        Integer bestScore = scoreRosterDayMap.keySet().stream().max(Comparator.naturalOrder()).orElseThrow();
         List<RosterDay> bestRoster = scoreRosterDayMap.get(bestScore);
         exportRosterToExcel(bestRoster);
     }
@@ -74,21 +73,45 @@ public class RosterGenerator {
     }
 
     private static List<RosterDay> getRosterDays(List<Person> persons) {
-        LocalDate startDate = LocalDate.of(2023, 11, 01);
+        LocalDate startDate = LocalDate.of(2023, 11, 1);
         LocalDate endDate = LocalDate.of(2023, 11, 30);
         long numOfDaysBetween = ChronoUnit.DAYS.between(startDate, endDate);
         List<LocalDate> days = IntStream.iterate(0, i -> i + 1)
                 .limit(numOfDaysBetween + 1)
-                .mapToObj(i -> startDate.plusDays(i))
-                .collect(Collectors.toList());
+                .mapToObj(startDate::plusDays)
+                .toList();
         Random random = new Random();
-        List<RosterDay> rosterDays = days.stream().map(day -> new RosterDay(
-                day,
-                persons.get(random.nextInt(persons.size())),
-                persons.get(random.nextInt(persons.size())),
-                persons.get(random.nextInt(persons.size())),
-                persons.get(random.nextInt(persons.size())))).collect(Collectors.toList());
-        return rosterDays;
+        return days.stream().map(day -> {
+            Person person1 = persons.get(random.nextInt(persons.size()));
+
+            List<Person> tempListPerson2 = persons.stream()
+                    .filter(p -> (p.getLevel() + person1.getLevel()) >= 2)
+                    .filter(p -> !p.equals(person1))
+                    .toList();
+            Person person2 = tempListPerson2
+                    .get(random.nextInt(tempListPerson2.size()));
+
+            List<Person> tempListPerson3 = persons.stream()
+                    .filter(p -> !p.equals(person1))
+                    .filter(p -> !p.equals(person2))
+                    .toList();
+            Person person3 = tempListPerson3
+                    .get(random.nextInt(tempListPerson3.size()));
+
+            List<Person> tempListPerson4 = persons.stream()
+                    .filter(p -> !p.equals(person1))
+                    .filter(p -> !p.equals(person2))
+                    .filter(p -> !p.equals(person3))
+                    .filter(p -> (p.getLevel() + person3.getLevel()) >= 2).toList();
+            Person person4 = tempListPerson4.get(random.nextInt(tempListPerson4.size()));
+
+            return new RosterDay(
+                    day,
+                    person1,
+                    person2,
+                    person3,
+                    person4);
+        }).toList();
     }
 
     private int calculateRosterScore(List<RosterDay> rosterDays) {
@@ -114,14 +137,16 @@ public class RosterGenerator {
         return 0;
     }
 
-    private double evaluateHardCriteriumShiftExperienceLevel(Shift shift) {
-        return 1. / (1 + shift.person1().getLevel() + shift.person2().getLevel()) * hardCriterium;
+    private int evaluateHardCriteriumShiftExperienceLevel(Shift shift) {
+        if ((shift.person1().getLevel() + shift.person2().getLevel())<2){
+            return hardCriterium;
+        }
+        return 0;
     }
 
     private static List<Person> getPersons() {
         List<String> namen = List.of("Lukas", "Hannes");
-        List<Person> personen = namen.stream().flatMap(name -> IntStream.range(0, 10).boxed()
-                .map(k -> new Person(name + String.valueOf(k), k % 3))).collect(Collectors.toList());
-        return personen;
+        return namen.stream().flatMap(name -> IntStream.range(0, 10).boxed()
+                .map(k -> new Person(name + k, k % 3))).toList();
     }
 }
