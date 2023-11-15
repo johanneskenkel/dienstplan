@@ -10,23 +10,30 @@ public class RosterGenerator {
     public RosterGenerator(int hardCriterion) throws IOException {
         this.hardCriterion = hardCriterion;
         List<Person> persons = getPersons();
+        LocalDate startDate = LocalDate.of(2023, 11, 1);
+        LocalDate endDate = LocalDate.of(2023, 11, 30);
+
+
+        Map<Integer, List<RosterDay>> scoreRosterDaysMap = getScoreRosterDaysMap(persons, startDate, endDate);
+        scoreRosterDaysMap.keySet().stream().sorted(Comparator.reverseOrder()).limit(7).forEach(System.out::println);
+        Integer bestScore = scoreRosterDaysMap.keySet().stream().max(Comparator.naturalOrder()).orElseThrow();
+        List<RosterDay> bestRoster = scoreRosterDaysMap.get(bestScore);
+        IOTools.exportRosterToExcel(bestRoster);
+    }
+
+    private Map<Integer, List<RosterDay>> getScoreRosterDaysMap(List<Person> persons, LocalDate startDate, LocalDate endDate) {
         Map<Integer, List<RosterDay>> scoreRosterDayMap = new HashMap<>();
         int index;
         for (index = 0; index < 1000; index++) {
-            List<RosterDay> rosterDays = getRosterDays(persons);
+            List<RosterDay> rosterDays = getRosterDays(persons, startDate, endDate);
             int rosterScore = calculateRosterScore(rosterDays);
             System.out.println(rosterScore);
             scoreRosterDayMap.put(rosterScore, rosterDays);
         }
-        scoreRosterDayMap.keySet().stream().sorted(Comparator.reverseOrder()).limit(7).forEach(System.out::println);
-        Integer bestScore = scoreRosterDayMap.keySet().stream().max(Comparator.naturalOrder()).orElseThrow();
-        List<RosterDay> bestRoster = scoreRosterDayMap.get(bestScore);
-        IOTools.exportRosterToExcel(bestRoster);
+        return scoreRosterDayMap;
     }
 
-    private static List<RosterDay> getRosterDays(List<Person> persons) {
-        LocalDate startDate = LocalDate.of(2023, 11, 1);
-        LocalDate endDate = LocalDate.of(2023, 11, 30);
+    private static List<RosterDay> getRosterDays(List<Person> persons, LocalDate startDate, LocalDate endDate) {
         long numOfDaysBetween = ChronoUnit.DAYS.between(startDate, endDate);
         List<LocalDate> days = IntStream.iterate(0, i -> i + 1)
                 .limit(numOfDaysBetween + 1)
